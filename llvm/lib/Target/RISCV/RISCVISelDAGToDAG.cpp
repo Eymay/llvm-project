@@ -1053,7 +1053,47 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   case ISD::XOR:
     if (tryShrinkShlLogicImm(Node))
       return;
+    SDValue LOAD0 = Node->getOperand(0);
+    SDValue LOAD1 = Node->getOperand(1);
+    if(LOAD0.getOpcode() != ISD::LOAD || LOAD1.getOpcode() != ISD::LOAD)
+      break;
+      LLVM_DEBUG(dbgs() << "Found a load pair\n");
+      LLVM_DEBUG(LOAD0->dump(CurDAG));
+      LLVM_DEBUG(LOAD1->dump(CurDAG));
+    SDValue LOAD0_op0 = LOAD0.getOperand(0);
+    SDValue LOAD0_op1_offset = LOAD0.getOperand(1); // t0
+      LLVM_DEBUG(dbgs() << "cons\n");
+      LLVM_DEBUG(LOAD0_op0->dump(CurDAG));
+      LLVM_DEBUG(LOAD0_op1_offset->dump(CurDAG));
+    SDValue LOAD1_op0 = LOAD1.getOperand(0); 
+    SDValue LOAD1_op1_offset = LOAD1.getOperand(1); 
+      LLVM_DEBUG(dbgs() << "ADD op\n");
+      LLVM_DEBUG(LOAD1_op0->dump(CurDAG));
+      LLVM_DEBUG(LOAD1_op1_offset->dump(CurDAG));
 
+    if(LOAD1_op1_offset.getOpcode() != ISD::ADD)
+        break;
+       //Check if the addendum0 is the same as the second 
+    if(LOAD1_op0 != LOAD0_op0)
+        break;
+    SDValue LOAD1_op1_offset_Addendum0 = LOAD1_op1_offset.getOperand(0);
+      LLVM_DEBUG(dbgs() << "left Addendum \n");
+      LLVM_DEBUG(LOAD1_op1_offset_Addendum0->dump(CurDAG));
+    if(LOAD1_op1_offset_Addendum0 != LOAD0_op1_offset)
+        break;
+    SDValue LOAD1_op1_offset_Addendum1 = LOAD1_op1_offset.getOperand(1);
+      LLVM_DEBUG(dbgs() << "right constant Addendum \n");
+      LLVM_DEBUG(LOAD1_op1_offset_Addendum1->dump(CurDAG));
+    auto *LOAD1_op1_offset_Addendum1C = dyn_cast<ConstantSDNode>(LOAD1_op1_offset_Addendum1);
+    if(!LOAD1_op1_offset_Addendum1C)
+        break;
+//Check if addendum1 is 16 more than first load offset
+    if(LOAD1_op1_offset_Addendum1C->getZExtValue() != 16)
+        break;
+      LLVM_DEBUG(dbgs() << "FINALLLLLLLLLL\n");
+      LLVM_DEBUG(LOAD0->dump(CurDAG));
+      LLVM_DEBUG(LOAD1->dump(CurDAG));
+   //ReplaceNode(Node, LOAD0);
     break;
   case ISD::AND: {
     auto *N1C = dyn_cast<ConstantSDNode>(Node->getOperand(1));
