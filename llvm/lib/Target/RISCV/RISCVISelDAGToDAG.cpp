@@ -798,6 +798,21 @@ bool RISCVDAGToDAGISel::tryIndexedLoad(SDNode *Node) {
 
   return true;
 }
+//|| STORE_op1.getOpcode() != ISD::ADD
+bool RISCVDAGToDAGISel::selectSBox(SDNode *Node){
+    SDValue STORE_op0 = Node->getOperand(1);
+    SDValue STORE_op1 = Node->getOperand(2);
+       LLVM_DEBUG(dbgs() << "Searching XORS\n");
+      LLVM_DEBUG(STORE_op0->dump(CurDAG));
+      LLVM_DEBUG(STORE_op1->dump(CurDAG));  
+        if(STORE_op0.getOpcode() != ISD::XOR )
+      return false;
+      LLVM_DEBUG(dbgs() << "Found XORS\n");
+      LLVM_DEBUG(STORE_op0->dump(CurDAG));
+      LLVM_DEBUG(STORE_op1->dump(CurDAG));
+
+      return true;
+}
 
 void RISCVDAGToDAGISel::Select(SDNode *Node) {
   // If we have a custom node, we have already selected.
@@ -1042,9 +1057,10 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     return;
   }
   case ISD::OR:
-  case ISD::XOR:
+  case ISD::XOR:{
     if (tryShrinkShlLogicImm(Node))
       return;
+    /*
     SDValue LOAD0 = Node->getOperand(0);
     SDValue LOAD1 = Node->getOperand(1);
     if(LOAD0.getOpcode() != ISD::LOAD || LOAD1.getOpcode() != ISD::LOAD)
@@ -1086,7 +1102,9 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       LLVM_DEBUG(LOAD0->dump(CurDAG));
       LLVM_DEBUG(LOAD1->dump(CurDAG));
    //ReplaceNode(Node, LOAD0);
-    break;
+   */ 
+   break;
+}
   case ISD::AND: {
     auto *N1C = dyn_cast<ConstantSDNode>(Node->getOperand(1));
     if (!N1C)
@@ -1391,6 +1409,12 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       return;
     break;
   }
+  case ISD::STORE: {
+   if(selectSBox(Node))
+       return;
+   break;
+  }
+
   case ISD::INTRINSIC_WO_CHAIN: {
     unsigned IntNo = Node->getConstantOperandVal(0);
     switch (IntNo) {
