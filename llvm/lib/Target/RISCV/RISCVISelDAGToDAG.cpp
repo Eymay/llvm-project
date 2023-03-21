@@ -1410,8 +1410,10 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     break;
   }
   case ISD::STORE: {
-   if(selectSBox(Node))
-       return;
+
+   bool k = selectSBox(Node);
+   //if(selectSBox(Node))
+   //    return;
    break;
   }
 

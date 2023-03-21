@@ -1856,7 +1856,7 @@ def HWASAN_CHECK_MEMACCESS_SHORTGRANULES
                                                       (i32 timm:$accessinfo))]>;
 
 /// Simple optimization
-def : Pat<(add GPR:$rs1, (AddiPair:$rs2)),
+def : Pat<(add GPR:$rs1, (GPR:$rs2)),
           (ADDI (ADDI GPR:$rs1, (AddiPairImmLarge AddiPair:$rs2)),
                 (AddiPairImmSmall GPR:$rs2))>;
 
@@ -1874,6 +1874,9 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0, Size = 0, isCodeGenOnly = 1 i
   def PseudoRVVInitUndefM4     :  Pseudo<(outs VRM4:$vd), (ins), [], "">;
   def PseudoRVVInitUndefM8     :  Pseudo<(outs VRM8:$vd), (ins), [], "">;
 }
+
+def : Pat<(store (xor (load GPR:$rs1), (load GPR:$rs2)), GPR:$rs1),
+          (SRA GPR:$rs1, GPR:$rs2)>;
 
 //===----------------------------------------------------------------------===//
 // Standard extensions
