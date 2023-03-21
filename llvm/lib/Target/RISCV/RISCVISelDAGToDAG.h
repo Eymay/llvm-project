@@ -37,7 +37,7 @@ public:
     Subtarget = &MF.getSubtarget<RISCVSubtarget>();
     return SelectionDAGISel::runOnMachineFunction(MF);
   }
-
+  bool selectSBox(SDNode *N);
   void PreprocessISelDAG() override;
   void PostprocessISelDAG() override;
 

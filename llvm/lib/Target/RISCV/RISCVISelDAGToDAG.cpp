@@ -57,6 +57,49 @@ static unsigned getVecPolicyOpIdx(const SDNode *Node, const MCInstrDesc &MCID) {
   return getLastNonGlueOrChainOpIdx(Node);
 }
 
+bool RISCVDAGToDAGISel::selectSBox(SDNode * Node) {
+SDValue LOAD0 = Node->getOperand(0);
+    SDValue LOAD1 = Node->getOperand(1);
+    if(LOAD0.getOpcode() != ISD::LOAD || LOAD1.getOpcode() != ISD::LOAD)
+      return false;
+      LLVM_DEBUG(dbgs() << "Found a load pair\n");
+      LLVM_DEBUG(LOAD0->dump(CurDAG));
+      LLVM_DEBUG(LOAD1->dump(CurDAG));
+    SDValue LOAD0_op0 = LOAD0.getOperand(0);
+    SDValue LOAD0_op1_offset = LOAD0.getOperand(1); // t0
+      LLVM_DEBUG(dbgs() << "cons\n");
+      LLVM_DEBUG(LOAD0_op0->dump(CurDAG));
+      LLVM_DEBUG(LOAD0_op1_offset->dump(CurDAG));
+    SDValue LOAD1_op0 = LOAD1.getOperand(0); 
+    SDValue LOAD1_op1_offset = LOAD1.getOperand(1); 
+      LLVM_DEBUG(dbgs() << "ADD op\n");
+      LLVM_DEBUG(LOAD1_op0->dump(CurDAG));
+      LLVM_DEBUG(LOAD1_op1_offset->dump(CurDAG));
+
+    if(LOAD1_op1_offset.getOpcode() != ISD::ADD)
+        return false;
+       //Check if the addendum0 is the same as the second 
+    if(LOAD1_op0 != LOAD0_op0)
+        return false;
+    SDValue LOAD1_op1_offset_Addendum0 = LOAD1_op1_offset.getOperand(0);
+      LLVM_DEBUG(dbgs() << "left Addendum \n");
+      LLVM_DEBUG(LOAD1_op1_offset_Addendum0->dump(CurDAG));
+    if(LOAD1_op1_offset_Addendum0 != LOAD0_op1_offset)
+        return false;
+    SDValue LOAD1_op1_offset_Addendum1 = LOAD1_op1_offset.getOperand(1);
+      LLVM_DEBUG(dbgs() << "right constant Addendum \n");
+      LLVM_DEBUG(LOAD1_op1_offset_Addendum1->dump(CurDAG));
+    auto *LOAD1_op1_offset_Addendum1C = dyn_cast<ConstantSDNode>(LOAD1_op1_offset_Addendum1);
+    if(!LOAD1_op1_offset_Addendum1C)
+        return false;
+//Check if addendum1 is 16 more than first load offset
+    if(LOAD1_op1_offset_Addendum1C->getZExtValue() != 16)
+        return false;
+      LLVM_DEBUG(dbgs() << "FINALLLLLLLLLL\n");
+      LLVM_DEBUG(LOAD0->dump(CurDAG));
+      LLVM_DEBUG(LOAD1->dump(CurDAG));
+}
+
 void RISCVDAGToDAGISel::PreprocessISelDAG() {
   SelectionDAG::allnodes_iterator Position = CurDAG->allnodes_end();
 
@@ -1028,7 +1071,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     unsigned ShAmt = N1C->getZExtValue();
     unsigned ExtSize =
         cast<VTSDNode>(N0.getOperand(1))->getVT().getSizeInBits();
-    // ExtSize of 32 should use sraiw via tablegen pattern.
+    // ExtSize of 32 should use sraiw via tablegen pattern.ISD::SIGN_EXTEND_INREG
     if (ExtSize >= 32 || ShAmt >= ExtSize)
       break;
     unsigned LShAmt = Subtarget->getXLen() - ExtSize;
@@ -1042,7 +1085,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     return;
   }
   case ISD::OR:
-  case ISD::XOR:
+  case ISD::XOR:{
     if (tryShrinkShlLogicImm(Node))
       return;
     SDValue LOAD0 = Node->getOperand(0);
@@ -1086,7 +1129,19 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       LLVM_DEBUG(LOAD0->dump(CurDAG));
       LLVM_DEBUG(LOAD1->dump(CurDAG));
    //ReplaceNode(Node, LOAD0);
+   /* 
+    // Pattern Match xor (load), (load)
+    SDValue LOAD1 = Node->getOperand(1);
+    SDValue LOAD2 = Node->getOperand(0);
+    if (LOAD1.getOpcode() != ISD::LOAD || LOAD2.getOpcode() != ISD::LOAD)
+      break;  
+    SDNode *MULHU = CurDAG->getMachineNode(RISCV::MULHU, DL, VT,
+                                           SDValue(SLLI, 0), SDValue(Imm, 0));
+    ReplaceNode(Node, MULHU);
+    return;
+    */
     break;
+  }
   case ISD::AND: {
     auto *N1C = dyn_cast<ConstantSDNode>(Node->getOperand(1));
     if (!N1C)
@@ -1390,6 +1445,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     if (tryIndexedLoad(Node))
       return;
     break;
+
   }
   case ISD::STORE: {
 

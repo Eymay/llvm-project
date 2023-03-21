@@ -392,6 +392,8 @@ def uimm6gt32 : ImmLeaf<XLenVT, [{
   return isUInt<6>(Imm) && Imm > 32;
 }]>;
 
+
+
 // Addressing modes.
 // Necessary because a frameindex can't be matched directly in a pattern.
 def FrameAddrRegImm : ComplexPattern<iPTR, 2, "SelectFrameAddrRegImm",
@@ -1881,6 +1883,54 @@ def SXR     : ALU_rr<0b0100000, 0b100, "sxr", /*Commutable*/1>,
 }
 def : Pat<(store (i32 (xor (i32(load GPR:$rs1)), (i32 (load GPR:$rs2)))), GPR:$rs1),
           (SXR GPR:$rs1, GPR:$rs2)>;
+
+// Return an immediate value plus 16
+def ImmPlus16 : SDNodeXForm<imm, [{
+  return CurDAG->getTargetConstant(N->getSExtValue() + 16, SDLoc(N),
+                                   N->getValueType(0));
+}]>;
+
+/*
+let mayLoad = 1 in {
+def SBOX  : ALU_rr<0b0000010, 0b000, "sbox", /*Commutable*/0>,
+           Sched<[WriteIALU, ReadIALU, ReadIALU]>;
+
+}
+*/
+
+
+def  SBOX : Instruction {
+    bits<32> Inst;
+    bits<32> SoftFail = 0;
+    bits<5> rs2;
+    bits<5> rs1;
+    bits<5> rd;
+    let Namespace = "RISCV";
+    let hasSideEffects = 1;
+    let mayLoad = 1;
+    let mayStore = 0;
+    let Size = 4;
+    let Inst{31-25} = 0b0000010; /*funct7*/ 
+    let Inst{24-20} = rs2; /*rs2*/
+    let Inst{19-15} = rs1; /*rs1*/
+    let Inst{14-12} = 0b000; /*funct3*/
+    let Inst{11-7} = rd; 
+    let Inst{6-0} = 0b0110011; /*opcode*/
+
+    dag OutOperandList = (outs GPR:$rd);
+    dag InOperandList = (ins GPR:$rs1 ,  GPR:$rs2);
+    let Constraints = "$rd = $rs2";
+    let AsmString = "sbox\t$rd, $rs1, $rs2";
+}
+def : Pat<(xor (load  GPR:$rs1), (load GPR:$rs2)),
+          (SBOX  GPR:$rs1, GPR:$rs2)>;
+/*def : Pat<(xor (load  GPR:$rs1), (load ( add  GPR:$rs1, (i32 16)))),
+          (SBOX  GPR:$rs1, GPR:$rs1)>;
+def : Pat<(xor (load  ( add  GPR:$rs1, (i32 8))), (load ( add  GPR:$rs1, (i32 4)))),
+          (SBOX  GPR:$rs1, GPR:$rs1)>;
+*/
+//def : Pat<(xor (load (AddrRegImm GPR:$rs1, simm12:( 0)) ),(load (AddrRegImm GPR:$rs1, simm12: (16))) )  ,
+//          (SBOX (load GPR:$rs1), (i32 16))>;
 
 //===----------------------------------------------------------------------===//
 // Standard extensions

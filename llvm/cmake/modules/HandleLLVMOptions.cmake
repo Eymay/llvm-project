@@ -295,7 +295,7 @@ endfunction()
 
 if( LLVM_ENABLE_LLD )
   if ( LLVM_USE_LINKER )
-    message(FATAL_ERROR "LLVM_ENABLE_LLD and LLVM_USE_LINKER can't be set at the same time")
+      message(FATAL_ERROR "LLVM_ENABLE_LLD and LLVM_USE_LINKER can't be set at the same time")
   endif()
 
   # In case of MSVC cmake always invokes the linker directly, so the linker
