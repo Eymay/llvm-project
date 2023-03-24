@@ -21,6 +21,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include <map>
 #include <optional>
 
 using namespace llvm;
@@ -57,7 +58,82 @@ static unsigned getVecPolicyOpIdx(const SDNode *Node, const MCInstrDesc &MCID) {
   return getLastNonGlueOrChainOpIdx(Node);
 }
 
-bool RISCVDAGToDAGISel::selectSBox(SDNode * Node) {
+class sbox{
+    std::map<int, int> foundTreeIds = {
+        {9, -1},
+        {13,-1},
+        {20,-1},
+        {32,-1},
+        {36,-1},
+        {34,-1}
+    };
+bool query(SDNode *Node, int treeId);
+bool query32(SDNode *Node, int treeId);
+bool query36(SDNode *Node, int treeId);
+bool query34(SDNode *Node, int treeId);
+bool queryStore1(SDNode *Node);
+bool queryStore2(SDNode *Node);
+bool queryStore3(SDNode *Node);
+bool queryStore4(SDNode *Node);
+bool queryStore5(SDNode *Node);
+    public:
+bool check(SDNode *Node, int treeId);
+
+};
+
+bool sbox::check(SDNode *Node, int treeId){
+    
+    if (foundTreeIds[treeId] == -1) {
+        switch(treeId){
+            case 9:
+            case 13:
+            case 20:
+                break;
+            case 32:
+                query32(Node, treeId);
+                break;
+            case 36:
+                query36(Node, treeId);
+                break;
+            case 34:
+                query34(Node, treeId);
+                break;
+        } 
+    }
+    if (Node->getNodeId() == foundTreeIds[treeId]) {
+        LLVM_DEBUG(dbgs() << "go\n");
+        return true;
+        }
+    return false;
+}
+
+bool sbox::query(SDNode *Node, int treeId){
+    foundTreeIds[treeId] = Node->getNodeId();
+    return true;
+}
+/*struct sBoxTrees {
+    int t9 = -1, t13 = -1, t20 = -1, t32 = -1, t36 = -1, t34 = -1;
+    } SBox;
+    */
+bool RISCVDAGToDAGISel::selectSBox(SDNode *Node) {
+    sbox Sbox;
+
+    LLVM_DEBUG(dbgs() << "DUMP CHILDREN\n");
+    if(Sbox.checkStore1(Node)){
+        LLVM_DEBUG(dbgs() << "Hi\n");
+    }
+/*
+    LLVM_DEBUG(Node->getOperand(0).getNode()->dump());
+    LLVM_DEBUG(dbgs() << Node->getOperand(0).getNode()->getNodeId());
+    LLVM_DEBUG(Node->getOperand(1).getNode()->dump());
+    LLVM_DEBUG(dbgs() << Node->getOperand(1).getNode()->getNodeId());
+    LLVM_DEBUG(Node->getOperand(2).getNode()->dump());
+    LLVM_DEBUG(dbgs() << Node->getOperand(2).getNode()->getNodeId());
+  */  
+ 
+
+
+    /*
 SDValue LOAD0 = Node->getOperand(0);
     SDValue LOAD1 = Node->getOperand(1);
     if(LOAD0.getOpcode() != ISD::LOAD || LOAD1.getOpcode() != ISD::LOAD)
@@ -98,6 +174,8 @@ SDValue LOAD0 = Node->getOperand(0);
       LLVM_DEBUG(dbgs() << "FINALLLLLLLLLL\n");
       LLVM_DEBUG(LOAD0->dump(CurDAG));
       LLVM_DEBUG(LOAD1->dump(CurDAG));
+      */
+    return false;
 }
 
 void RISCVDAGToDAGISel::PreprocessISelDAG() {
@@ -1088,6 +1166,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   case ISD::XOR:{
     if (tryShrinkShlLogicImm(Node))
       return;
+    /*
     SDValue LOAD0 = Node->getOperand(0);
     SDValue LOAD1 = Node->getOperand(1);
     if(LOAD0.getOpcode() != ISD::LOAD || LOAD1.getOpcode() != ISD::LOAD)
@@ -1129,7 +1208,7 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
       LLVM_DEBUG(LOAD0->dump(CurDAG));
       LLVM_DEBUG(LOAD1->dump(CurDAG));
    //ReplaceNode(Node, LOAD0);
-   /* 
+   
     // Pattern Match xor (load), (load)
     SDValue LOAD1 = Node->getOperand(1);
     SDValue LOAD2 = Node->getOperand(0);
@@ -1449,9 +1528,14 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
   }
   case ISD::STORE: {
 
-   bool k = selectSBox(Node);
+   //bool k = selectSBox(Node);
    //if(selectSBox(Node))
    //    return;
+   break;
+  }
+  case ISD::TokenFactor: {
+    
+   bool k = selectSBox(Node);
    break;
   }
 
