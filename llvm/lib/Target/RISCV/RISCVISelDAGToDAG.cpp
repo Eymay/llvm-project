@@ -22,6 +22,8 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include <map>
+#include <queue>
+#include <unordered_set>
 #include <optional>
 
 using namespace llvm;
@@ -57,7 +59,7 @@ static unsigned getVecPolicyOpIdx(const SDNode *Node, const MCInstrDesc &MCID) {
   (void)MCID;
   return getLastNonGlueOrChainOpIdx(Node);
 }
-
+/*
 class sbox{
     std::map<int, int> foundTreeIds = {
         {9, -1},
@@ -76,8 +78,9 @@ bool queryStore2(SDNode *Node);
 bool queryStore3(SDNode *Node);
 bool queryStore4(SDNode *Node);
 bool queryStore5(SDNode *Node);
-    public:
 bool check(SDNode *Node, int treeId);
+    public:
+bool checkStore(SDNode *Node, int treeId);
 
 };
 
@@ -115,13 +118,167 @@ bool sbox::query(SDNode *Node, int treeId){
     int t9 = -1, t13 = -1, t20 = -1, t32 = -1, t36 = -1, t34 = -1;
     } SBox;
     */
+void printAdjacencyList(SelectionDAG *DAG) {
+  // Create a map to store the adjacency list
+  std::map<unsigned, std::vector<unsigned>> adjList;
+
+  // Iterate over all the nodes in the DAG
+  for (auto &Node : DAG->allnodes()) {
+    // Get the ID of the current node
+    unsigned nodeId = Node.getNodeId();
+
+    // Iterate over all the operands of the current node
+    for (auto &Op : Node.op_values()) {
+      // Get the ID of the operand node
+      unsigned operandId = Op.getNode()->getNodeId();
+
+      // Add an entry to the adjacency list
+      adjList[nodeId].push_back(operandId);
+    }
+  }
+
+  // Print the adjacency list
+  for (auto &entry : adjList) {
+    dbgs() << "Node " << entry.first << " depends on: ";
+    for (auto &operand : entry.second) {
+      dbgs() << operand << " ";
+    }
+    dbgs() << "\n";
+  }
+}
+
 bool RISCVDAGToDAGISel::selectSBox(SDNode *Node) {
-    sbox Sbox;
 
     LLVM_DEBUG(dbgs() << "DUMP CHILDREN\n");
-    if(Sbox.checkStore1(Node)){
-        LLVM_DEBUG(dbgs() << "Hi\n");
+    SelectionDAG *DAG = CurDAG; // your DAG
+std::map<SDNode *, std::vector<SDNode *>> adjList;
+
+// Traverse the DAG using a BFS algorithm
+std::queue<SDNode *> q;
+std::unordered_set<SDNode *> visited;
+
+SDNode *root = DAG->getRoot().getNode();
+q.push(root);
+visited.insert(root);
+
+while (!q.empty()) {
+  SDNode *node = q.front();
+  q.pop();
+
+  // Add node to the adjacency list if not already present
+  if (!adjList.count(node)) {
+    adjList[node] = std::vector<SDNode *>();
+  }
+
+  // Traverse the operands of the node and add them to the adjacency list
+  //TODO: refactor this mess
+  for (unsigned i = 0; i < node->getNumOperands(); i++) {
+    if(node->getOpcode() == ISD::STORE){
+        LLVM_DEBUG(dbgs() << "STORE");
+        if(i == 0 || i == 3)
+            continue;
+    }else if(node->getOpcode() == ISD::LOAD){
+        LLVM_DEBUG(dbgs() << "LOAD");
+        if( i == 2)
+            continue;
     }
+    SDNode *opNode = node->getOperand(i).getNode();
+
+    // Add operand node to the adjacency list if not already present
+    if (!adjList.count(opNode)) {
+      adjList[opNode] = std::vector<SDNode *>();
+    }
+
+    // Add an edge from the node to the operand node
+    adjList[node].push_back(opNode);
+    //LLVM_DEBUG(opNode->dump());
+
+    // If the operand node is not already visited, add it to the queue
+    if (visited.count(opNode) == 0) {
+      q.push(opNode);
+      visited.insert(opNode);
+    }
+  }
+}
+
+for (auto &entry : adjList) {
+    dbgs() << "Node " << entry.first->getOpcode() << " depends on: ";
+    //entry.first->dump();
+    dbgs() << entry.first->getOpcode();
+    for (auto &operand : entry.second) {
+      dbgs() << operand->getOpcode() << " ";
+      //operand->dump();
+    }
+    dbgs() << "\n";
+  }
+return false;
+}
+
+/*
+bool RISCVDAGToDAGISel::selectSBox(SDNode *Node) {
+
+    LLVM_DEBUG(dbgs() << "DUMP CHILDREN\n");
+    SelectionDAG *DAG = CurDAG; // your DAG
+std::map<SDNode *, std::vector<SDNode *>> adjList;
+
+// Traverse the DAG using a BFS algorithm
+std::queue<SDNode *> q;
+std::unordered_set<SDNode *> visited;
+
+SDNode *root = DAG->getRoot().getNode();
+q.push(root);
+visited.insert(root);
+
+while (!q.empty()) {
+  SDNode *node = q.front();
+  q.pop();
+
+  // Add node to the adjacency list if not already present
+  if (!adjList.count(node)) {
+    adjList[node] = std::vector<SDNode *>();
+  }
+
+  // Traverse the operands of the node and add them to the adjacency list
+  //TODO: refactor this mess
+  for (unsigned i = 0; i < node->getNumOperands(); i++) {
+    if(node->getOpcode() == ISD::STORE){
+        LLVM_DEBUG(dbgs() << "STORE");
+        if(i == 0 || i == 3)
+            continue;
+    }else if(node->getOpcode() == ISD::LOAD){
+        LLVM_DEBUG(dbgs() << "LOAD");
+        if( i == 2)
+            continue;
+    }
+    SDNode *opNode = node->getOperand(i).getNode();
+
+    // Add operand node to the adjacency list if not already present
+    if (!adjList.count(opNode)) {
+      adjList[opNode] = std::vector<SDNode *>();
+    }
+
+    // Add an edge from the node to the operand node
+    adjList[node].push_back(opNode);
+    //LLVM_DEBUG(opNode->dump());
+
+    // If the operand node is not already visited, add it to the queue
+    if (visited.count(opNode) == 0) {
+      q.push(opNode);
+      visited.insert(opNode);
+    }
+  }
+}
+
+for (auto &entry : adjList) {
+    dbgs() << "Node " << entry.first << " depends on: ";
+    entry.first->dump();
+    for (auto &operand : entry.second) {
+      dbgs() << operand << " ";
+      operand->dump();
+    }
+    dbgs() << "\n";
+  }
+*/
 /*
     LLVM_DEBUG(Node->getOperand(0).getNode()->dump());
     LLVM_DEBUG(dbgs() << Node->getOperand(0).getNode()->getNodeId());
@@ -174,9 +331,9 @@ SDValue LOAD0 = Node->getOperand(0);
       LLVM_DEBUG(dbgs() << "FINALLLLLLLLLL\n");
       LLVM_DEBUG(LOAD0->dump(CurDAG));
       LLVM_DEBUG(LOAD1->dump(CurDAG));
-      */
     return false;
 }
+      */
 
 void RISCVDAGToDAGISel::PreprocessISelDAG() {
   SelectionDAG::allnodes_iterator Position = CurDAG->allnodes_end();
