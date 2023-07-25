@@ -134,6 +134,10 @@ struct HalfWords {
   const uint16_t Lo; // Second halfword
 };
 
+constexpr uint32_t combineHalfWords(const HalfWords& hw){
+    return (static_cast<uint32_t>(hw.Hi) << 16) | static_cast<uint32_t>(hw.Lo);
+}
+
 /// Collection of named constants per fixup kind. It may contain but is not
 /// limited to the following entries:
 ///
