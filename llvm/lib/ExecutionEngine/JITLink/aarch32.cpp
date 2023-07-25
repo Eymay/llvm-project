@@ -547,6 +547,29 @@ Symbol &StubsManager<Thumbv7>::createEntry(LinkGraph &G, Symbol &Target) {
   return Stub;
 }
 
+const uint8_t ARMv7ABS[] = {
+    0x00, 0xc0, 0x00, 0xe3, // movw r12, #0x0000    ; lower 16-bit
+    0x00, 0xc0, 0x40, 0xe3, // movt r12, #0x0000    ; upper 16-bit
+    0x1c, 0xff, 0x2f, 0xe1  // bx   r12
+};
+
+template <>
+Symbol &StubsManager<ARMv7>::createEntry(LinkGraph &G, Symbol &Target) {
+  constexpr uint64_t Alignment = 4;
+  Block &B = addStub(G, ARMv7ABS, Alignment);
+  LLVM_DEBUG({
+    const char *StubPtr = B.getContent().data();
+    HalfWords Reg12 = encodeRegMovtT1MovwT3(12);
+    assert(checkRegister<Arm_MovwAbsNC>(StubPtr, combineHalfWords(Reg12)) &&
+           checkRegister<Arm_MovtAbs>(StubPtr + 4, combineHalfWords(Reg12)) &&
+           "Linker generated stubs may only corrupt register r12 (IP)");
+  });
+  B.addEdge(Arm_MovwAbsNC, 0, Target, 0);
+  B.addEdge(Arm_MovtAbs, 4, Target, 0);
+  Symbol &Stub = G.addAnonymousSymbol(B, 0, B.getSize(), true, false);
+  Stub.setTargetFlags(ArmSymbol);
+  return Stub;
+}
 const char *getEdgeKindName(Edge::Kind K) {
 #define KIND_NAME_CASE(K)                                                      \
   case K:                                                                      \

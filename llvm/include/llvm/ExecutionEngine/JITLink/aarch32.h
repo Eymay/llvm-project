@@ -80,6 +80,7 @@ enum EdgeKind_aarch32 : Edge::Kind {
 /// Flags enum for AArch32-specific symbol properties
 enum TargetFlags_aarch32 : TargetFlagsType {
   ThumbSymbol = 1 << 0,
+  ArmSymbol = 0 << 0,
 };
 
 /// Human-readable name for a given CPU architecture kind
@@ -101,6 +102,7 @@ const char *getEdgeKindName(Edge::Kind K);
 ///
 enum StubsFlavor {
   Unsupported = 0,
+  ARMv7,
   Thumbv7,
 };
 
@@ -117,7 +119,7 @@ inline ArmConfig getArmConfigForCPUArch(ARMBuildAttrs::CPUArch CPUArch) {
   case ARMBuildAttrs::v7:
   case ARMBuildAttrs::v8_A:
     ArmCfg.J1J2BranchEncoding = true;
-    ArmCfg.Stubs = Thumbv7;
+    ArmCfg.Stubs = ARMv7;
     break;
   default:
     DEBUG_WITH_TYPE("jitlink", {
@@ -312,6 +314,8 @@ private:
 template <>
 Symbol &StubsManager<Thumbv7>::createEntry(LinkGraph &G, Symbol &Target);
 
+template <>
+Symbol &StubsManager<ARMv7>::createEntry(LinkGraph &G, Symbol &Target);
 } // namespace aarch32
 } // namespace jitlink
 } // namespace llvm
