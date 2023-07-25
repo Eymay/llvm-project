@@ -91,6 +91,7 @@ HalfWords encodeImmMovtT1MovwT3(uint16_t Value) {
   return HalfWords{Imm1 << 10 | Imm4, Imm3 << 12 | Imm8};
 }
 
+
 /// Decode 16-bit immediate value from move instruction formats MOVT T1 and
 /// MOVW T3.
 ///
@@ -353,6 +354,11 @@ Error applyFixupData(LinkGraph &G, Block &B, const Edge &E) {
   int64_t Addend = E.getAddend();
   Symbol &TargetSymbol = E.getTarget();
   uint64_t TargetAddress = TargetSymbol.getAddress().getValue();
+  LLVM_DEBUG(dbgs() << TargetSymbol.hasTargetFlags(ThumbSymbol) <<  " Flag "
+                    << "  applyFixupData: " << formatv("{0:x16}", FixupAddress)
+                    << ": " << formatv("{0:x16}", Addend) << " + "
+                    << TargetAddress << " - " << "Target Addr"
+                    << TargetSymbol.getName() << "\n");
   assert(!TargetSymbol.hasTargetFlags(ThumbSymbol));
 
   // Regular data relocations have size 4, alignment 1 and write the full 32-bit
@@ -560,6 +566,10 @@ Symbol &StubsManager<ARMv7>::createEntry(LinkGraph &G, Symbol &Target) {
   LLVM_DEBUG({
     const char *StubPtr = B.getContent().data();
     HalfWords Reg12 = encodeRegMovtT1MovwT3(12);
+    //cast StubPtr to ArmRelocation
+    const ArmRelocation &Reloc = *reinterpret_cast<const ArmRelocation *>(StubPtr);
+    dbgs() << Reloc.Wd << "Arm Reloc Value";
+    
     assert(checkRegister<Arm_MovwAbsNC>(StubPtr, combineHalfWords(Reg12)) &&
            checkRegister<Arm_MovtAbs>(StubPtr + 4, combineHalfWords(Reg12)) &&
            "Linker generated stubs may only corrupt register r12 (IP)");
@@ -570,6 +580,42 @@ Symbol &StubsManager<ARMv7>::createEntry(LinkGraph &G, Symbol &Target) {
   Stub.setTargetFlags(ArmSymbol);
   return Stub;
 }
+
+/*
+
+void ARMV7ABSLongThunk::writeLong(uint8_t *buf) {
+  write32(buf + 0, 0xe300c000); // movw ip,:lower16:S
+  write32(buf + 4, 0xe340c000); // movt ip,:upper16:S
+  write32(buf + 8, 0xe12fff1c); // bx   ip
+  uint64_t s = getARMThunkDestVA(destination);
+  target->relocateNoSym(buf, R_ARM_MOVW_ABS_NC, s);
+  target->relocateNoSym(buf + 4, R_ARM_MOVT_ABS, s);
+}
+
+void ARMV7ABSLongThunk::addSymbols(ThunkSection &isec) {
+  addSymbol(saver().save("__ARMv7ABSLongThunk_" + destination.getName()),
+            STT_FUNC, 0, isec);
+  addSymbol("$a", STT_NOTYPE, 0, isec);
+}
+
+void ThumbV7ABSLongThunk::writeLong(uint8_t *buf) {
+  write16(buf + 0, 0xf240); // movw ip, :lower16:S
+  write16(buf + 2, 0x0c00);
+  write16(buf + 4, 0xf2c0); // movt ip, :upper16:S
+  write16(buf + 6, 0x0c00);
+  write16(buf + 8, 0x4760); // bx   ip
+  uint64_t s = getARMThunkDestVA(destination);
+  target->relocateNoSym(buf, R_ARM_THM_MOVW_ABS_NC, s);
+  target->relocateNoSym(buf + 4, R_ARM_THM_MOVT_ABS, s);
+}
+
+void ThumbV7ABSLongThunk::addSymbols(ThunkSection &isec) {
+  addSymbol(saver().save("__Thumbv7ABSLongThunk_" + destination.getName()),
+            STT_FUNC, 1, isec);
+  addSymbol("$t", STT_NOTYPE, 0, isec);
+}
+*/
+
 const char *getEdgeKindName(Edge::Kind K) {
 #define KIND_NAME_CASE(K)                                                      \
   case K:                                                                      \
@@ -577,6 +623,7 @@ const char *getEdgeKindName(Edge::Kind K) {
 
   switch (K) {
     KIND_NAME_CASE(Data_Delta32)
+    KIND_NAME_CASE(Data_Pointer32)
     KIND_NAME_CASE(Arm_Call)
     KIND_NAME_CASE(Arm_MovwAbsNC)
     KIND_NAME_CASE(Arm_MovtAbs)

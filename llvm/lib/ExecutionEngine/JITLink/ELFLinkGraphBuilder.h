@@ -15,9 +15,11 @@
 
 #include "llvm/ExecutionEngine/JITLink/JITLink.h"
 #include "llvm/Object/ELF.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FormatVariadic.h"
+#include <cstdint>
 
 #define DEBUG_TYPE "jitlink"
 
@@ -407,6 +409,10 @@ template <typename ELFT> Error ELFLinkGraphBuilder<ELFT>::graphifySymbols() {
   auto Symbols = Obj.symbols(SymTabSec);
   if (!Symbols)
     return Symbols.takeError();
+  for (ELFSymbolIndex SymIndex = 0; SymIndex != Symbols->size(); ++SymIndex) {
+    auto &Sym = (*Symbols)[SymIndex];
+      LLVM_DEBUG(dbgs() << "Symbols Array SDFJSDF Found \n" <<  Sym.getValue());
+  }
 
   // Get the string table for this section.
   auto StringTab = Obj.getStringTableForSymtab(*SymTabSec, Sections);
@@ -431,6 +437,7 @@ template <typename ELFT> Error ELFLinkGraphBuilder<ELFT>::graphifySymbols() {
   for (ELFSymbolIndex SymIndex = 0; SymIndex != Symbols->size(); ++SymIndex) {
     auto &Sym = (*Symbols)[SymIndex];
 
+    LLVM_DEBUG(dbgs() << Sym.getValue() << "Symbol Value SDFSJDF");
     // Check symbol type.
     switch (Sym.getType()) {
     case ELF::STT_FILE:
@@ -453,9 +460,11 @@ template <typename ELFT> Error ELFLinkGraphBuilder<ELFT>::graphifySymbols() {
     auto Name = Sym.getName(*StringTab);
     if (!Name)
       return Name.takeError();
+    LLVM_DEBUG(dbgs() << "Gsym   " << *Name << "\n");
 
     // Handle common symbols specially.
     if (Sym.isCommon()) {
+    LLVM_DEBUG(dbgs() << "Common Gsym   " << *Name << "\n");
       Symbol &GSym = G->addDefinedSymbol(
           G->createZeroFillBlock(getCommonSection(), Sym.st_size,
                                  orc::ExecutorAddr(), Sym.getValue(), 0),
@@ -512,7 +521,14 @@ template <typename ELFT> Error ELFLinkGraphBuilder<ELFT>::graphifySymbols() {
                                       S, Sym.getType() == ELF::STT_FUNC,
                                       false);
 
+        LLVM_DEBUG(dbgs() << "Gsym   " << *Name << "\n"
+                << GSym.hasTargetFlags(1) << "Flags  \n"
+                << static_cast<uint8_t>(Flags) << "Target Flags\n"
+                << Sym.getValue() << "Symbol Value in ELFLinkGraphBuilder\n");
+
         GSym.setTargetFlags(Flags);
+        LLVM_DEBUG(dbgs() << "Gsym   " << *Name << "\n"
+                << GSym.hasTargetFlags(1) << "Flags  \n");
         setGraphSymbol(SymIndex, GSym);
       }
     } else if (Sym.isUndefined() && Sym.isExternal()) {

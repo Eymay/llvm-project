@@ -17,6 +17,7 @@
 #include "llvm/ExecutionEngine/JITLink/aarch32.h"
 #include "llvm/Object/ELF.h"
 #include "llvm/Object/ELFObjectFile.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/TargetParser/ARMTargetParser.h"
@@ -184,6 +185,8 @@ private:
 
 protected:
   TargetFlagsType makeTargetFlags(const typename ELFT::Sym &Sym) override {
+      LLVM_DEBUG( dbgs()  << Sym.getValue() << " Symbol's Value\n");
+
     if (Sym.getValue() & 0x01)
       return aarch32::ThumbSymbol;
     return TargetFlagsType{};
@@ -299,6 +302,10 @@ void link_ELF_aarch32(std::unique_ptr<LinkGraph> G,
       PassCfg.PrePrunePasses.push_back(markAllSymbolsLive);
 
     switch (ArmCfg.Stubs) {
+    case aarch32::ARMv7:
+      PassCfg.PostPrunePasses.push_back(
+          buildTables_ELF_aarch32<aarch32::ARMv7>);
+      break;
     case aarch32::Thumbv7:
       PassCfg.PostPrunePasses.push_back(
           buildTables_ELF_aarch32<aarch32::Thumbv7>);

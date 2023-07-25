@@ -270,6 +270,11 @@ public:
   bool visitEdge(LinkGraph &G, Block *B, Edge &E) {
     if (E.getTarget().isDefined())
       return false;
+    DEBUG_WITH_TYPE("jitlink", {
+            dbgs() << "  Visiting " << G.getEdgeKindName(E.getKind()) << " edge at "
+             << B->getFixupAddress(E) << " (" << B->getAddress() << " + "
+             << formatv("{0:x}", E.getOffset()) << ")\n";
+    });
 
     switch (E.getKind()) {
     case Thumb_Call:
