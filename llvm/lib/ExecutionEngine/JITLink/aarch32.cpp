@@ -151,6 +151,30 @@ struct ThumbRelocation {
   const support::ulittle16_t &Lo; // Second halfword
 };
 
+union WritableArmRelocation {
+        WritableThumbRelocation Thumb; 
+        support::ulittle32_t Wd;      // Full word
+
+  WritableArmRelocation(char *FixupPtr) : Thumb(FixupPtr) {}
+
+};
+
+struct ArmRelocation {
+  /// Create a read-only reference to an ARM fixup.
+  ArmRelocation(const char *FixupPtr)
+      : Wd{*reinterpret_cast<const support::ulittle32_t *>(FixupPtr)},
+        Hi{*reinterpret_cast<const support::ulittle16_t *>(FixupPtr)},
+        Lo{*reinterpret_cast<const support::ulittle16_t *>(FixupPtr + 2)}{}
+
+  /// Create a read-only ARM fixup from a writeable one.
+  ArmRelocation(WritableArmRelocation &Writable)
+      : Wd{Writable.Wd}, Hi{Writable.Thumb.Hi}, Lo(Writable.Thumb.Lo) {}
+
+  const support::ulittle32_t &Wd; // Full word
+  const support::ulittle16_t &Hi; // First halfword
+  const support::ulittle16_t &Lo; // Second halfword
+};
+
 Error makeUnexpectedOpcodeError(const LinkGraph &G, const ThumbRelocation &R,
                                 Edge::Kind Kind) {
   return make_error<JITLinkError>(
