@@ -48,7 +48,13 @@ enum EdgeKind_aarch32 : Edge::Kind {
   /// TODO: Arm_Call is here only as a placeholder for now.
   Arm_Call = FirstArmRelocation,
 
-  LastArmRelocation = Arm_Call,
+  /// Write immediate value to the lower halfword of the destination register
+  Arm_MovwAbsNC,
+
+  /// Write immediate value to the top halfword of the destination register
+  Arm_MovtAbs,
+
+  LastArmRelocation = Arm_MovtAbs,
 
   ///
   /// Relocations of class Thumb16 and Thumb32 (covers Thumb instruction subset)
@@ -148,6 +154,18 @@ constexpr uint32_t combineHalfWords(const HalfWords& hw){
 ///   RegMask     - Mask with all bits set that encode the register
 ///
 template <EdgeKind_aarch32 Kind> struct FixupInfo {};
+
+template <> struct FixupInfo<Arm_MovtAbs> {
+  static constexpr uint32_t Opcode = combineHalfWords({0xf2c0, 0x0000});
+  static constexpr uint32_t OpcodeMask = combineHalfWords({0xfbf0, 0x8000});
+  static constexpr uint32_t ImmMask = combineHalfWords({0x040f, 0x70ff});
+  static constexpr uint32_t RegMask = combineHalfWords({0x0000, 0x0f00});
+};
+
+template <>
+struct FixupInfo<Arm_MovwAbsNC> : public FixupInfo<Arm_MovtAbs> {
+  static constexpr uint32_t Opcode = combineHalfWords({0xf240, 0x0000});
+};
 
 template <> struct FixupInfo<Thumb_Jump24> {
   static constexpr HalfWords Opcode{0xf000, 0x8000};

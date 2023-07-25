@@ -262,6 +262,7 @@ Expected<int64_t> readAddendData(LinkGraph &G, Block &B, const Edge &E) {
 }
 
 Expected<int64_t> readAddendArm(LinkGraph &G, Block &B, const Edge &E) {
+  ArmRelocation R(B.getContent().data() + E.getOffset());
   Edge::Kind Kind = E.getKind();
 
   switch (Kind) {
@@ -269,6 +270,16 @@ Expected<int64_t> readAddendArm(LinkGraph &G, Block &B, const Edge &E) {
     return make_error<JITLinkError>(
         "Addend extraction for relocation type not yet implemented: " +
         StringRef(G.getEdgeKindName(Kind)));
+  case Arm_MovwAbsNC:
+    if (!checkOpcode<Arm_MovwAbsNC>(R))
+      return makeUnexpectedOpcodeError(G, R, Kind);
+    // Initial addend is interpreted as a signed value
+    return SignExtend64<16>(decodeImmMovtT1MovwT3(R.Hi, R.Lo));
+  case Arm_MovtAbs:
+    if (!checkOpcode<Arm_MovtAbs>(R))
+      return makeUnexpectedOpcodeError(G, R, Kind);
+    // Initial addend is interpreted as a signed value
+    return SignExtend64<16>(decodeImmMovtT1MovwT3(R.Hi, R.Lo));
   default:
     return make_error<JITLinkError>(
         "In graph " + G.getName() + ", section " + B.getSection().getName() +
@@ -371,13 +382,34 @@ Error applyFixupData(LinkGraph &G, Block &B, const Edge &E) {
 }
 
 Error applyFixupArm(LinkGraph &G, Block &B, const Edge &E) {
+  WritableArmRelocation R(B.getAlreadyMutableContent().data() +
+                            E.getOffset());
+
   Edge::Kind Kind = E.getKind();
+  int64_t Addend = E.getAddend();
+  Symbol &TargetSymbol = E.getTarget();
+  uint64_t TargetAddress = TargetSymbol.getAddress().getValue();
 
   switch (Kind) {
   case Arm_Call:
     return make_error<JITLinkError>(
         "Fix-up for relocation type not yet implemented: " +
         StringRef(G.getEdgeKindName(Kind)));
+  case Arm_MovwAbsNC: {
+    if (!checkOpcode<Arm_MovwAbsNC>(R))
+      return makeUnexpectedOpcodeError(G, R, Kind);
+    uint16_t Value = (TargetAddress + Addend) & 0xffff;
+    writeImmediate<Arm_MovwAbsNC>(R, combineHalfWords(encodeImmMovtT1MovwT3(Value)));
+    return Error::success();
+  }
+
+  case Arm_MovtAbs: {
+    if (!checkOpcode<Arm_MovtAbs>(R))
+      return makeUnexpectedOpcodeError(G, R, Kind);
+    uint16_t Value = ((TargetAddress + Addend) >> 16) & 0xffff;
+    writeImmediate<Arm_MovtAbs>(R, combineHalfWords(encodeImmMovtT1MovwT3(Value)));
+    return Error::success();
+  }
   default:
     return make_error<JITLinkError>(
         "In graph " + G.getName() + ", section " + B.getSection().getName() +
@@ -523,6 +555,8 @@ const char *getEdgeKindName(Edge::Kind K) {
   switch (K) {
     KIND_NAME_CASE(Data_Delta32)
     KIND_NAME_CASE(Arm_Call)
+    KIND_NAME_CASE(Arm_MovwAbsNC)
+    KIND_NAME_CASE(Arm_MovtAbs)
     KIND_NAME_CASE(Thumb_Call)
     KIND_NAME_CASE(Thumb_Jump24)
     KIND_NAME_CASE(Thumb_MovwAbsNC)
