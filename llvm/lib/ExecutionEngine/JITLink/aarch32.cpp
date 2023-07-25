@@ -212,7 +212,7 @@ bool checkRegister(const ThumbRelocation &R, HalfWords Reg) {
 template <EdgeKind_aarch32 Kind>
 bool writeRegister(WritableThumbRelocation &R, HalfWords Reg) {
   static constexpr HalfWords Mask = FixupInfo<Kind>::RegMask;
-  assert((Mask.Hi & Reg.Hi) == Reg.Hi && (Mask.Hi & Reg.Hi) == Reg.Hi &&
+  assert((Mask.Hi & Reg.Hi) == Reg.Hi && (Mask.Lo & Reg.Lo) == Reg.Lo &&
          "Value bits exceed bit range of given mask");
   R.Hi = (R.Hi & ~Mask.Hi) | Reg.Hi;
   R.Lo = (R.Lo & ~Mask.Lo) | Reg.Lo;
@@ -516,6 +516,7 @@ const char *getEdgeKindName(Edge::Kind K) {
 
   switch (K) {
     KIND_NAME_CASE(Data_Delta32)
+    KIND_NAME_CASE(Data_Pointer32)
     KIND_NAME_CASE(Arm_Call)
     KIND_NAME_CASE(Thumb_Call)
     KIND_NAME_CASE(Thumb_Jump24)
