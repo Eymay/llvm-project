@@ -74,6 +74,7 @@ enum EdgeKind_aarch32 : Edge::Kind {
 /// Flags enum for AArch32-specific symbol properties
 enum TargetFlags_aarch32 : TargetFlagsType {
   ThumbSymbol = 1 << 0,
+  ArmSymbol = 0 << 0,
 };
 
 /// Human-readable name for a given CPU architecture kind
