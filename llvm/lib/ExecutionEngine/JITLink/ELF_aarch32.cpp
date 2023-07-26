@@ -178,7 +178,7 @@ protected:
   TargetFlagsType makeTargetFlags(const typename ELFT::Sym &Sym) override {
     if (Sym.getValue() & 0x01)
       return aarch32::ThumbSymbol;
-    return TargetFlagsType{};
+    return aarch32::ArmSymbol;
   }
 
   orc::ExecutorAddrDiff getRawOffset(const typename ELFT::Sym &Sym,
