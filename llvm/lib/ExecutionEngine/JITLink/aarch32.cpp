@@ -279,13 +279,15 @@ Expected<int64_t> readAddendData(LinkGraph &G, Block &B, const Edge &E) {
 }
 
 Expected<int64_t> readAddendArm(LinkGraph &G, Block &B, const Edge &E) {
+  ArmRelocation R(B.getContent().data() + E.getOffset());
   Edge::Kind Kind = E.getKind();
 
   switch (Kind) {
   case Arm_Call:
-    return make_error<JITLinkError>(
-        "Addend extraction for relocation type not yet implemented: " +
-        StringRef(G.getEdgeKindName(Kind)));
+    if (!checkOpcode<Arm_Call>(R))
+      return makeUnexpectedOpcodeError(G, R, Kind);
+    return decodeImmBA1BlA1BlxA2(R.Wd);
+
   default:
     return make_error<JITLinkError>(
         "In graph " + G.getName() + ", section " + B.getSection().getName() +
@@ -359,7 +361,6 @@ Error applyFixupData(LinkGraph &G, Block &B, const Edge &E) {
   int64_t Addend = E.getAddend();
   Symbol &TargetSymbol = E.getTarget();
   uint64_t TargetAddress = TargetSymbol.getAddress().getValue();
-  assert(!TargetSymbol.hasTargetFlags(ThumbSymbol));
 
   // Regular data relocations have size 4, alignment 1 and write the full 32-bit
   // result to the place; no need for overflow checking. There are three
@@ -388,13 +389,54 @@ Error applyFixupData(LinkGraph &G, Block &B, const Edge &E) {
 }
 
 Error applyFixupArm(LinkGraph &G, Block &B, const Edge &E) {
+  WritableArmRelocation R(B.getAlreadyMutableContent().data() + E.getOffset());
   Edge::Kind Kind = E.getKind();
+  uint64_t FixupAddress = (B.getAddress() + E.getOffset()).getValue();
+  int64_t Addend = E.getAddend();
+  Symbol &TargetSymbol = E.getTarget();
+  uint64_t TargetAddress = TargetSymbol.getAddress().getValue();
+  if (TargetSymbol.hasTargetFlags(ThumbSymbol))
+    TargetAddress |= 0x01;
 
   switch (Kind) {
-  case Arm_Call:
-    return make_error<JITLinkError>(
-        "Fix-up for relocation type not yet implemented: " +
-        StringRef(G.getEdgeKindName(Kind)));
+  case Arm_Call: {
+    if (!checkOpcode<Arm_Call>(R))
+      return makeUnexpectedOpcodeError(G, R, Kind);
+
+    if ((R.Wd & FixupInfo<Arm_Call>::CondMask) !=
+        FixupInfo<Arm_Call>::Unconditional)
+      return make_error<JITLinkError>("Relocation expects an unconditional "
+                                      "BL/BLX branch instruction: " +
+                                      StringRef(G.getEdgeKindName(Kind)));
+
+    int64_t Value = TargetAddress - FixupAddress + Addend;
+
+    // The call instruction itself is Arm. The call destination can either be
+    // Thumb or Arm. We use BL to stay in Arm and BLX to change to Thumb.
+    bool TargetIsThumb = TargetSymbol.hasTargetFlags(ThumbSymbol);
+    bool InstrIsBlx = (~R.Wd & FixupInfo<Arm_Call>::BitBlx) == 0;
+    if (TargetIsThumb != InstrIsBlx) {
+      if (LLVM_LIKELY(TargetIsThumb)) {
+        // Change opcode BL -> BLX and fix range value
+        // TODO should we align to 2 bytes here?
+        R.Wd = R.Wd | FixupInfo<Arm_Call>::BitBlx;
+        R.Wd = R.Wd & ~FixupInfo<Arm_Call>::BitH;
+        // Value = alignTo(Value, 4);
+        // Set Thumb bit
+        Value |= 0x01;
+      } else {
+        // Change opcode BLX -> BL
+        R.Wd = R.Wd & ~FixupInfo<Arm_Call>::BitBlx;
+      }
+    }
+
+    if (!isInt<26>(Value))
+      return makeTargetOutOfRangeError(G, B, E);
+    writeImmediate<Arm_Call>(R, encodeImmBA1BlA1BlxA2(Value));
+
+    return Error::success();
+  }
+
   default:
     return make_error<JITLinkError>(
         "In graph " + G.getName() + ", section " + B.getSection().getName() +
