@@ -18,6 +18,7 @@
 #include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/MathExtras.h"
+#include <cstdint>
 
 #define DEBUG_TYPE "jitlink"
 
@@ -76,6 +77,24 @@ int64_t decodeImmBT4BlT1BlxT2_J1J2(uint32_t Hi, uint32_t Lo) {
   uint32_t Imm10 = Hi & 0x03ff;
   uint32_t Imm11 = Lo & 0x07ff;
   return SignExtend64<25>(S << 14 | I1 | I2 | Imm10 << 12 | Imm11 << 1);
+}
+
+/// Encode 26-bit immediate value for branch instructions
+/// (formats B A1, BL A1 and BLX A2).
+///
+///   00000:Imm24:00 ->  00000:Imm24
+///
+uint32_t encodeImmBA1BlA1BlxA2(int64_t Value) {
+  return (Value >> 2) & 0x00ffffff;
+}
+
+/// Decode 26-bit immediate value for branch instructions
+/// (formats B A1, BL A1 and BLX A2).
+///
+///   00000:Imm24 ->  00000:Imm24:00
+///
+int64_t decodeImmBA1BlA1BlxA2(int64_t Value) {
+  return SignExtend64<26>((Value & 0x00ffffff) << 2);
 }
 
 /// Encode 16-bit immediate value for move instruction formats MOVT T1 and
