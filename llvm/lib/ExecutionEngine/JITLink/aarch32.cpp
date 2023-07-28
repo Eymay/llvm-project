@@ -151,7 +151,7 @@ struct ThumbRelocation {
   const support::ulittle16_t &Lo; // Second halfword
 };
 
-struct WritableArmRelocation { 
+struct WritableArmRelocation {
   WritableArmRelocation(char *FixupPtr)
       : Wd{*reinterpret_cast<support::ulittle32_t *>(FixupPtr)} {}
 
@@ -163,8 +163,7 @@ struct ArmRelocation {
   ArmRelocation(const char *FixupPtr)
       : Wd{*reinterpret_cast<const support::ulittle32_t *>(FixupPtr)} {}
 
-  ArmRelocation(WritableArmRelocation &Writable)
-      : Wd{Writable.Wd} {}
+  ArmRelocation(WritableArmRelocation &Writable) : Wd{Writable.Wd} {}
 
   const support::ulittle32_t &Wd;
 };
