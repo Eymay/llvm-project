@@ -199,13 +199,7 @@ Error makeUnexpectedOpcodeError(const LinkGraph &G, const ArmRelocation &R,
                                 Edge::Kind Kind) {
   return make_error<JITLinkError>(
       formatv("Invalid opcode [ 0x{0:x8} ] for relocation: {1}",
-              static_cast<uint32_t>(R.Wd),
-              G.getEdgeKindName(Kind)));
-}
-
-template <EdgeKind_aarch32 Kind> bool checkOpcode(const ArmRelocation &R) {
-  uint32_t Wd = R.Wd & FixupInfo<Kind>::OpcodeMask;
-  return Wd == FixupInfo<Kind>::Opcode;
+              static_cast<uint32_t>(R.Wd), G.getEdgeKindName(Kind)));
 }
 
 template <EdgeKind_aarch32 Kind> bool checkOpcode(const ThumbRelocation &R) {
@@ -214,10 +208,9 @@ template <EdgeKind_aarch32 Kind> bool checkOpcode(const ThumbRelocation &R) {
   return Hi == FixupInfo<Kind>::Opcode.Hi && Lo == FixupInfo<Kind>::Opcode.Lo;
 }
 
-template <EdgeKind_aarch32 Kind>
-bool checkRegister(const ArmRelocation &R, uint32_t Reg) {
-  uint32_t Wd = R.Wd & FixupInfo<Kind>::RegMask;
-  return Wd == Reg;
+template <EdgeKind_aarch32 Kind> bool checkOpcode(const ArmRelocation &R) {
+  uint32_t Wd = R.Wd & FixupInfo<Kind>::OpcodeMask;
+  return Wd == FixupInfo<Kind>::Opcode;
 }
 
 template <EdgeKind_aarch32 Kind>
@@ -225,6 +218,12 @@ bool checkRegister(const ThumbRelocation &R, HalfWords Reg) {
   uint16_t Hi = R.Hi & FixupInfo<Kind>::RegMask.Hi;
   uint16_t Lo = R.Lo & FixupInfo<Kind>::RegMask.Lo;
   return Hi == Reg.Hi && Lo == Reg.Lo;
+}
+
+template <EdgeKind_aarch32 Kind>
+bool checkRegister(const ArmRelocation &R, uint32_t Reg) {
+  uint32_t Wd = R.Wd & FixupInfo<Kind>::RegMask;
+  return Wd == Reg;
 }
 
 template <EdgeKind_aarch32 Kind>
@@ -237,11 +236,10 @@ bool writeRegister(WritableThumbRelocation &R, HalfWords Reg) {
 }
 
 template <EdgeKind_aarch32 Kind>
-void writeImmediate(WritableArmRelocation &R, uint32_t Imm) {
-  static constexpr uint32_t Mask = FixupInfo<Kind>::ImmMask;
-  assert((Mask & Imm) == Imm && 
-         "Value bits exceed bit range of given mask");
-  R.Wd = (R.Wd & ~Mask) | Imm;
+bool writeRegister(WritableArmRelocation &R, uint32_t Reg) {
+  static constexpr uint32_t Mask = FixupInfo<Kind>::RegMask;
+  assert((Mask & Reg) == Reg && "Value bits exceed bit range of given mask");
+  R.Wd = (R.Wd & ~Mask) | Reg;
 }
 
 template <EdgeKind_aarch32 Kind>
@@ -251,6 +249,13 @@ void writeImmediate(WritableThumbRelocation &R, HalfWords Imm) {
          "Value bits exceed bit range of given mask");
   R.Hi = (R.Hi & ~Mask.Hi) | Imm.Hi;
   R.Lo = (R.Lo & ~Mask.Lo) | Imm.Lo;
+}
+
+template <EdgeKind_aarch32 Kind>
+void writeImmediate(WritableArmRelocation &R, uint32_t Imm) {
+  static constexpr uint32_t Mask = FixupInfo<Kind>::ImmMask;
+  assert((Mask & Imm) == Imm && "Value bits exceed bit range of given mask");
+  R.Wd = (R.Wd & ~Mask) | Imm;
 }
 
 Expected<int64_t> readAddendData(LinkGraph &G, Block &B, const Edge &E) {
