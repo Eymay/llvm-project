@@ -2,7 +2,7 @@
 // RUN: llvm-jitlink -noexec -slab-address 0x76ff0000 -slab-allocate 10Kb -slab-page-size 4096 \
 // RUN:               -abs target=0x76bbe880 -show-entry-es -check %s %t.o
 
-# Check R_ARM_CALL relocation handling
+# Check R_ARM_CALL and R_ARM_JUMP24 relocation handling
  
 
         .globl target
@@ -29,3 +29,9 @@ main:
         blx target
         .size   callx, .-callx
 
+# R_ARM_JUMP24
+        .global jump24
+# jitlink-check: next_pc(jump24)+ decode_operand(jump24, 0) + 4 = target
+ jump24:
+        b target
+        .size   jump24, .-jump24
