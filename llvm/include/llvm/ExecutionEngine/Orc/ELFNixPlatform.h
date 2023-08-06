@@ -54,7 +54,7 @@ using ELFNixJITDylibDeinitializerSequence =
 /// Mediates between ELFNix initialization and ExecutionSession state.
 class ELFNixPlatform : public Platform {
 public:
-  /// Try to create a ELFNixPlatform instance, adding the ORC runtime to the
+  /// Try to create an ELFNixPlatform instance, adding the ORC runtime to the
   /// given JITDylib.
   ///
   /// The ORC runtime requires access to a number of symbols in
