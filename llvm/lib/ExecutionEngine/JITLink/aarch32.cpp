@@ -322,8 +322,8 @@ Expected<int64_t> readAddendThumb(LinkGraph &G, Block &B, const Edge &E,
                                       "B.W branch instruction: " +
                                       StringRef(G.getEdgeKindName(Kind)));
     return LLVM_LIKELY(ArmCfg.J1J2BranchEncoding)
-                  ? decodeImmBT4BlT1BlxT2_J1J2(R.Hi, R.Lo)
-                  : decodeImmBT4BlT1BlxT2(R.Hi, R.Lo);
+               ? decodeImmBT4BlT1BlxT2_J1J2(R.Hi, R.Lo)
+               : decodeImmBT4BlT1BlxT2(R.Hi, R.Lo);
 
   case Thumb_MovwAbsNC:
     if (!checkOpcode<Thumb_MovwAbsNC>(R))

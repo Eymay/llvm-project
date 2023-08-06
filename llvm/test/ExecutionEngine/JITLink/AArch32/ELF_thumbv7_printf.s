@@ -1,5 +1,6 @@
 // RUN: llvm-mc -triple=thumbv7-none-linux-gnueabi -arm-add-build-attributes -filetype=obj -o %t.o %s
-// RUN: llvm-jitlink -noexec -slab-address 0x76ff0000 -slab-allocate 10Kb -slab-page-size 4096 -abs printf=0x76bbe880 -show-entry-es %t.o | FileCheck %s
+// RUN: llvm-jitlink -noexec -slab-address 0x76ff0000 -slab-allocate 10Kb -slab-page-size 4096 \
+// RUN:              -abs printf=0x76bbe880 -show-entry-es %t.o | FileCheck %s
 
 // Check that main is a thumb symbol (with LSB set) and printf is arm (with LSB clear)
 //
