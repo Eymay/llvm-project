@@ -317,7 +317,7 @@ Expected<int64_t> readAddendThumb(LinkGraph &G, Block &B, const Edge &E,
   case Thumb_Jump24:
     if (!checkOpcode<Thumb_Jump24>(R))
       return makeUnexpectedOpcodeError(G, R, Kind);
-    if (R.Lo & FixupInfo<Thumb_Jump24>::LoBitConditional)
+    if (~R.Lo & FixupInfo<Thumb_Jump24>::LoBitConditional)
       return make_error<JITLinkError>("Relocation expects an unconditional "
                                       "B.W branch instruction: " +
                                       StringRef(G.getEdgeKindName(Kind)));
@@ -482,7 +482,7 @@ Error applyFixupThumb(LinkGraph &G, Block &B, const Edge &E,
   case Thumb_Jump24: {
     if (!checkOpcode<Thumb_Jump24>(R))
       return makeUnexpectedOpcodeError(G, R, Kind);
-    if (R.Lo & FixupInfo<Thumb_Jump24>::LoBitConditional)
+    if (~R.Lo & FixupInfo<Thumb_Jump24>::LoBitConditional)
       return make_error<JITLinkError>("Relocation expects an unconditional "
                                       "B.W branch instruction: " +
                                       StringRef(G.getEdgeKindName(Kind)));
