@@ -103,6 +103,10 @@ static cl::opt<bool> SearchSystemLibrary(
     cl::desc("Add system library paths to library search paths"),
     cl::init(false), cl::cat(JITLinkCategory));
 
+static cl::opt<std::string>
+    TripleName("triple", cl::desc("Override the detected target triple for disassembler"),
+               cl::cat(JITLinkCategory));
+
 static cl::opt<bool> NoExec("noexec", cl::desc("Do not execute loaded code"),
                             cl::init(false), cl::cat(JITLinkCategory));
 
@@ -1997,7 +2001,19 @@ int main(int argc, char *argv[]) {
   std::unique_ptr<JITLinkTimers> Timers =
       ShowTimes ? std::make_unique<JITLinkTimers>() : nullptr;
 
-  auto [TT, Features] = getFirstFileTripleAndFeatures();
+  // If no target option is given infer the target, otherwise set it to TT
+  Triple TT; SubtargetFeatures Features;
+  if(TripleName == "")
+    std::tie(TT, Features) = getFirstFileTripleAndFeatures();
+  else {
+    TT = Triple(Triple::normalize(TripleName));
+    std::string ErrorStr;
+    if (!TargetRegistry::lookupTarget("", TT, ErrorStr)) {
+      dbgs() << ("Error accessing target '" + TripleName + "': " + ErrorStr) << "\n";
+      exit(1);
+    }
+  }
+
   ExitOnErr(sanitizeArguments(TT, argv[0]));
 
   auto S = ExitOnErr(Session::Create(std::move(TT), std::move(Features)));
