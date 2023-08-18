@@ -31,6 +31,9 @@ class RuntimeDyld;
 class RuntimeDyldCheckerImpl;
 class raw_ostream;
 
+/// Holds target-specific properties for a symbol.
+using TargetFlagsType = uint8_t;
+
 /// RuntimeDyld invariant checker for verifying that RuntimeDyld has
 ///        correctly applied relocations.
 ///
@@ -85,6 +88,11 @@ public:
         : ContentPtr(Content.data()), Size(Content.size()),
           TargetAddress(TargetAddress) {}
 
+    /// Constructor for symbols/sections with content.
+    MemoryRegionInfo(ArrayRef<char> Content, JITTargetAddress TargetAddress, uint8_t TargetFlags)
+        : ContentPtr(Content.data()), Size(Content.size()),
+          TargetAddress(TargetAddress), TargetFlags(TargetFlags) {}
+
     /// Constructor for zero-fill symbols/sections.
     MemoryRegionInfo(uint64_t Size, JITTargetAddress TargetAddress)
         : Size(Size), TargetAddress(TargetAddress) {}
@@ -129,10 +137,22 @@ public:
     /// Return the target address for this region.
     JITTargetAddress getTargetAddress() const { return TargetAddress; }
 
+      /// Check whether the given target flags are set for this Symbol.
+  bool hasTargetFlags(TargetFlagsType Flags) const {
+    return static_cast<TargetFlagsType>(TargetFlags) & Flags;
+  }
+
+  /// Set the target flags for this Symbol.
+  void setTargetFlags(TargetFlagsType Flags) {
+    assert(Flags <= 0xFF && "Add more bits to store more than single flag");
+    TargetFlags = Flags;
+  }
+
   private:
     const char *ContentPtr = nullptr;
     uint64_t Size = 0;
     JITTargetAddress TargetAddress = 0;
+    TargetFlagsType TargetFlags = 0;
   };
 
   using IsSymbolValidFunction = std::function<bool(StringRef Symbol)>;

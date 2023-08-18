@@ -627,6 +627,11 @@ public:
   bool hasTargetFlags(TargetFlagsType Flags) const {
     return static_cast<TargetFlagsType>(TargetFlags) & Flags;
   }
+  
+  /// Get the target flags of this Symbol.
+  TargetFlagsType getTargetFlags() const {
+    return TargetFlags;
+  }
 
   /// Set the target flags for this Symbol.
   void setTargetFlags(TargetFlagsType Flags) {
