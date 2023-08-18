@@ -1860,14 +1860,11 @@ getTargetInfo(const Triple &TT,
           std::move(MAI), std::move(Ctx), std::move(Disassembler),
           std::move(MII), std::move(MIA), std::move(InstPrinter)};
 }
-
-static Error runChecks(Session &S) {
+static Error runChecks(Session &S, Triple TT, SubtargetFeatures Features) {
   if (CheckFiles.empty())
     return Error::success();
 
   LLVM_DEBUG(dbgs() << "Running checks...\n");
-
-  auto TI = getTargetInfo(S.ES.getTargetTriple(), S.Features);
 
   auto IsSymbolValid = [&S](StringRef Symbol) {
     return S.isSymbolRegistered(Symbol);
@@ -1892,7 +1889,7 @@ static Error runChecks(Session &S) {
   RuntimeDyldChecker Checker(
       IsSymbolValid, GetSymbolInfo, GetSectionInfo, GetStubInfo, GetGOTInfo,
       S.ES.getTargetTriple().isLittleEndian() ? support::little : support::big,
-      TI.Disassembler.get(), TI.InstPrinter.get(), dbgs());
+      TT, Features, dbgs());
 
   std::string CheckLineStart = "# " + CheckName + ":";
   for (auto &CheckFile : CheckFiles) {
@@ -2052,7 +2049,7 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  ExitOnErr(runChecks(*S));
+  ExitOnErr(runChecks(*S, TT, Features));
 
   int Result = 0;
   if (!NoExec) {

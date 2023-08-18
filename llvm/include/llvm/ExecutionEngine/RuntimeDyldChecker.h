@@ -12,6 +12,8 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/Support/Endian.h"
+#include "llvm/TargetParser/SubtargetFeature.h"
+#include "llvm/TargetParser/Triple.h"
 #include <optional>
 
 #include <cstdint>
@@ -149,7 +151,7 @@ public:
                      GetStubInfoFunction GetStubInfo,
                      GetGOTInfoFunction GetGOTInfo,
                      support::endianness Endianness,
-                     MCDisassembler *Disassembler, MCInstPrinter *InstPrinter,
+                     Triple &TT, SubtargetFeatures &TF,
                      raw_ostream &ErrStream);
   ~RuntimeDyldChecker();
 

@@ -29,7 +29,7 @@ public:
       IsSymbolValidFunction IsSymbolValid, GetSymbolInfoFunction GetSymbolInfo,
       GetSectionInfoFunction GetSectionInfo, GetStubInfoFunction GetStubInfo,
       GetGOTInfoFunction GetGOTInfo, support::endianness Endianness,
-      MCDisassembler *Disassembler, MCInstPrinter *InstPrinter,
+      Triple &TT, SubtargetFeatures &TF,
       llvm::raw_ostream &ErrStream);
 
   bool check(StringRef CheckExpr) const;
@@ -37,6 +37,9 @@ public:
 
 private:
 
+  Expected<std::unique_ptr<MCDisassembler>> getDisassembler(const Triple &TT,
+                                 const SubtargetFeatures &Features) const;
+  Expected<std::unique_ptr<MCInstPrinter>> getInstPrinter(const Triple &TT) const;
   // StubMap typedefs.
 
   Expected<JITSymbolResolver::LookupResult>
@@ -65,8 +68,8 @@ private:
   GetStubInfoFunction GetStubInfo;
   GetGOTInfoFunction GetGOTInfo;
   support::endianness Endianness;
-  MCDisassembler *Disassembler;
-  MCInstPrinter *InstPrinter;
+  Triple &TT;
+  SubtargetFeatures &TF;
   llvm::raw_ostream &ErrStream;
 };
 }
