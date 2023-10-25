@@ -116,6 +116,7 @@ const char *getEdgeKindName(Edge::Kind K);
 ///
 enum StubsFlavor {
   Unsupported = 0,
+  Armv7,
   Thumbv7,
 };
 
@@ -348,7 +349,11 @@ private:
   Section *StubsSection = nullptr;
 };
 
-/// Create a branch range extension stub with Thumb encoding for v7 CPUs.
+/// Create a stub with Arm encoding for v7 CPUs.
+template <>
+Symbol &PLTTableManager<Armv7>::createEntry(LinkGraph &G, Symbol &Target);
+
+/// Create a stub with Thumb encoding for v7 CPUs.
 template <>
 Symbol &PLTTableManager<Thumbv7>::createEntry(LinkGraph &G, Symbol &Target);
 

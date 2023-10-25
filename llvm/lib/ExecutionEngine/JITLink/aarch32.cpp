@@ -644,11 +644,36 @@ Symbol &GOTTableManager::createEntry(LinkGraph &G, Symbol &Target) {
   return createAnonymousPointer(G, getGOTSection(G), &Target);
 }
 
+const uint8_t Armv7ABS[] = {
+    0x00, 0xc0, 0x00, 0xe3, // movw r12, #0x0000    ; lower 16-bit
+    0x00, 0xc0, 0x40, 0xe3, // movt r12, #0x0000    ; upper 16-bit
+    0x1c, 0xff, 0x2f, 0xe1  // bx   r12
+};
+
 const uint8_t Thumbv7ABS[] = {
     0x40, 0xf2, 0x00, 0x0c, // movw r12, #0x0000    ; lower 16-bit
     0xc0, 0xf2, 0x00, 0x0c, // movt r12, #0x0000    ; upper 16-bit
     0x60, 0x47              // bx   r12
 };
+
+template <>
+Symbol &PLTTableManager<Armv7>::createEntry(LinkGraph &G, Symbol &Target) {
+  constexpr uint64_t Alignment = 4;
+  Block &B = addStub(G, Thumbv7ABS, Alignment);
+  LLVM_DEBUG({
+    const char *StubPtr = B.getContent().data();
+    HalfWords Reg12 = encodeRegMovtT1MovwT3(12);
+    assert(checkRegister<Thumb_MovwAbsNC>(StubPtr, Reg12) &&
+           checkRegister<Thumb_MovtAbs>(StubPtr + 4, Reg12) &&
+           "Linker generated stubs may only corrupt register r12 (IP)");
+  });
+  Symbol &GOTEntry = GOT.getEntryForTarget(G, Target);
+  B.addEdge(Thumb_MovwAbsNC, 0, GOTEntry, 0);
+  B.addEdge(Thumb_MovtAbs, 4, GOTEntry, 0);
+  Symbol &Stub = G.addAnonymousSymbol(B, 0, B.getSize(), true, false);
+  Stub.setTargetFlags(ThumbSymbol);
+  return Stub;
+}
 
 template <>
 Symbol &PLTTableManager<Thumbv7>::createEntry(LinkGraph &G, Symbol &Target) {
