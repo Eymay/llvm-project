@@ -1,0 +1,33 @@
+name: Run Execution Tests
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  build-and-test:
+    runs-on: [self-hosted, ARM]
+    steps:
+    - name: Pull latest changes in LLVM
+      run: |
+        cd /home/eymen/Documents/Compiler/llvm-project  # Replace with the actual path to LLVM on your Pi
+        git fetch origin
+        git checkout ${{ github.ref }}
+        git pull origin ${{ github.ref }}
+
+    - name: Incremental build of LLVM
+      run: |
+        cd /home/eymen/Documents/Compiler/llvm-project/build
+        ninja llvm-jitlink
+
+    - name: Copy binary to test suite
+      run: |
+        mkdir -p /home/eymen/Documents/Compiler/jitlink-aarch32-testuite/bin
+        cp /home/eymen/Documents/Compiler/llvm-project/build/bin/llvm-jitlink /home/eymen/Documents/Compiler/jitlink-aarch32-testuite/bin
+
+    - name: Run execution tests
+      run: |
+        cd /home/eymen/Documents/Compiler/jitlink-aarch32-testuite
+        source llvm-lit-venv/bin/activate
+        lit . -a
