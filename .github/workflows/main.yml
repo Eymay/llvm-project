@@ -22,12 +22,12 @@ jobs:
 
     - name: Copy binary to test suite
       run: |
-        mkdir -p /home/eymen/Documents/Compiler/jitlink-aarch32-testuite/bin
-        cp /home/eymen/Documents/Compiler/llvm-project/build/bin/llvm-jitlink /home/eymen/Documents/Compiler/jitlink-aarch32-testuite/bin
+        mkdir -p /home/eymen/Documents/Compiler/jitlink-aarch32-testsuite/bin
+        cp /home/eymen/Documents/Compiler/llvm-project/build/bin/llvm-jitlink /home/eymen/Documents/Compiler/jitlink-aarch32-testsuite/bin
 
     - name: Run execution tests
       run: |
-        cd /home/eymen/Documents/Compiler/jitlink-aarch32-testuite
+        cd /home/eymen/Documents/Compiler/jitlink-aarch32-testsuite
         source llvm-lit-venv/bin/activate
         lit . -a
 
