@@ -13,8 +13,7 @@ jobs:
       run: |
         cd /home/eymen/Documents/Compiler/llvm-project  # Replace with the actual path to LLVM on your Pi
         git fetch origin
-        git checkout ${{ github.ref }}
-        git pull origin ${{ github.ref }}
+        git checkout -B ${{ github.ref_name }}
 
     - name: Incremental build of LLVM
       run: |
