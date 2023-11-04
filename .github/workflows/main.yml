@@ -2,8 +2,8 @@ name: Run Execution Tests
 
 on:
   push:
-    branches:
-      - '**'
+    branches-ignore:
+      - 'main'
 
 jobs:
   build-and-test:
