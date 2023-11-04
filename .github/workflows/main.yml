@@ -30,3 +30,9 @@ jobs:
         cd /home/eymen/Documents/Compiler/jitlink-aarch32-testuite
         source llvm-lit-venv/bin/activate
         lit . -a
+
+    - name: Upload llvm-jitlink binary
+      uses: actions/upload-artifact@v2
+      with:
+        name: llvm-jitlink-${{ github.sha }}
+        path: /home/eymen/Documents/Compiler/llvm-project/build/bin/llvm-jitlink
