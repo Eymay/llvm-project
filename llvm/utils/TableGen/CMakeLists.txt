@@ -6,6 +6,7 @@ add_llvm_library(LLVMTableGenCommon STATIC OBJECT EXCLUDE_FROM_ALL
   DirectiveEmitter.cpp
   IntrinsicEmitter.cpp
   RISCVTargetDefEmitter.cpp
+  JITLinkAArch32Emitter.cpp
   SDNodeProperties.cpp
   VTEmitter.cpp
   PARTIAL_SOURCES_INTENDED
