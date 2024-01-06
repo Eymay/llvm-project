@@ -49,6 +49,7 @@ add_llvm_component_library(LLVMJITLink
   DEPENDS
   intrinsics_gen
   JITLinkTableGen
+  JITLinkAArch32TableGen
 
   LINK_COMPONENTS
   BinaryFormat

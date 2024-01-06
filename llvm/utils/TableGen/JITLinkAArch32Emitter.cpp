@@ -6,13 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This Tablegen backend emits ...
+// This Tablegen backend emits instruction encodings of AArch32 for JITLink.
 //
 //===----------------------------------------------------------------------===//
 #include "llvm/ADT/StringRef.h"
+#include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
 
-#define DEBUG_TYPE "skeleton-emitter"
+#define DEBUG_TYPE "jitlink-instr-info"
 
 namespace llvm {
 class RecordKeeper;
@@ -23,30 +24,72 @@ using namespace llvm;
 
 namespace {
 
-// Any helper data structures can be defined here. Some backends use
-// structs to collect information from the records.
+struct InstrInfo {
+  uint32_t Opcode = 0;
+  uint32_t OpcodeMask = 0;
+  uint32_t ImmMask = 0;
+  uint32_t RegMask = 0;
+};
 
-class SkeletonEmitter {
+static void extractBits(BitsInit &InstBits, InstrInfo &II) {
+  for (unsigned i = 0; i < InstBits.getNumBits(); ++i) {
+    Init *Bit = InstBits.getBit(i);
+
+    if (auto *VarBit = dyn_cast<VarBitInit>(Bit)) {
+      // Check if the VarBit is for 'imm' or 'Rd'
+      std::string VarName = VarBit->getBitVar()->getAsUnquotedString();
+      if (VarName == "imm") {
+        II.ImmMask |= 1 << i;
+      } else if (VarName == "Rd") {
+        II.RegMask |= 1 << i;
+      }
+    } else if (auto *TheBit = dyn_cast<BitInit>(Bit)) {
+      II.OpcodeMask |= 1 << i;
+      if (TheBit->getValue()) {
+        II.Opcode |= 1 << i;
+      }
+    }
+  }
+
+  assert((II.OpcodeMask & II.ImmMask & II.RegMask) == 0 &&
+         "Masks have intersecting bits");
+}
+
+static void writeInstrInfo(raw_ostream &OS, const InstrInfo &II, const std::string &InstName) {
+  OS << "GET_INSTR(" << InstName << ", 0x";
+  OS.write_hex(II.Opcode) << ", 0x";
+  OS.write_hex(II.OpcodeMask) << ", 0x";
+  OS.write_hex(II.ImmMask) << ", 0x";
+  OS.write_hex(II.RegMask) << ")\n";
+}
+
+class JITLinkEmitter {
 private:
   RecordKeeper &Records;
 
 public:
-  SkeletonEmitter(RecordKeeper &RK) : Records(RK) {}
+  JITLinkEmitter(RecordKeeper &RK) : Records(RK) {}
 
   void run(raw_ostream &OS);
-}; // emitter class
+};
 
-} // anonymous namespace
+void JITLinkEmitter::run(raw_ostream &OS) {
+  emitSourceFileHeader("Instruction Encoding Information", OS);
 
-void SkeletonEmitter::run(raw_ostream &OS) {
-  emitSourceFileHeader("Skeleton data structures", OS);
+  OS << "#ifdef GET_INSTR // (Opc, Opc_Mask, Imm_Mask, Reg_Mask)\n";
+  auto RecordsList = Records.getAllDerivedDefinitions("Instruction");
+  for (auto *InstRecord : RecordsList) {
+    if(InstRecord->getValueAsBit("isPseudo"))
+	    continue;
+    auto *InstBits = InstRecord->getValueAsBitsInit("Inst");
+    InstrInfo II;
+    extractBits(*InstBits, II);
+    writeInstrInfo(OS, II, InstRecord->getNameInitAsString());
+  }
 
-  (void)Records; // To suppress unused variable warning; remove on use.
+  OS << "#endif\n";
 }
 
-// Choose either option A or B.
-
-//===----------------------------------------------------------------------===//
-// Option A: Register the backed as class <SkeletonEmitter>
-static TableGen::Emitter::OptClass<SkeletonEmitter>
-    X("gen-jitlink-aarch32-instr-info", "Generate example skeleton class");
+static TableGen::Emitter::OptClass<JITLinkEmitter>
+    X("gen-jitlink-aarch32-instr-info", "Generate JITLink Instruction Information");
+}
