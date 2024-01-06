@@ -19,6 +19,8 @@
 #include "llvm/Support/ARMBuildAttributes.h"
 #include "llvm/Support/Error.h"
 
+#include "JITLinkAArch32.h"
+
 namespace llvm {
 namespace jitlink {
 namespace aarch32 {
