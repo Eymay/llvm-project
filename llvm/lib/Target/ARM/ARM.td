@@ -86,3 +86,10 @@ def ARM : Target {
   let AssemblyParserVariants = [ARMAsmParserVariant];
   let AllowRegisterRenaming = 1;
 }
+
+
+//===----------------------------------------------------------------------===//
+// Pfm Counters
+//===----------------------------------------------------------------------===//
+
+include "ARMPfmCounters.td"
